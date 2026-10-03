@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SARA - Sistema de Alerta Temprana ONG</title>
+  <link rel="manifest" href="/public/manifest.json" />
+  <meta name="theme-color" content="#0284c7" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <style>
+    #map { height: 420px; width: 100%; border-radius: 0.75rem; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+  </style>
+</head>
+
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
+  <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50 px-4 py-3 shadow-lg">
+    <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-3">
+      <div class="flex items-center space-x-3">
+        <div class="bg-red-600/20 text-red-400 p-2.5 rounded-xl border border-red-500/30">
+          <i class="fa-solid fa-triangle-exclamation text-xl animate-pulse"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-white tracking-wide">SARA | Alerta Temprana ONG</h1>
+          <p class="text-xs text-slate-400">Monitoreo Hidrogeológico y Multirriesgo Comunitario</p>
+        </div>
+      </div>
+
+      <button id="btnSyncWeather" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition flex items-center gap-2">
+        <i class="fa-solid fa-cloud-bolt"></i> Sincronizar Clima en Vivo
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full space-y-6">
+    <!-- Grid de Indicadores -->
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+        <p class="text-slate-400 text-xs">Oficinas / Sedes</p>
+        <p class="text-xl font-bold text-white mt-1" id="kpiTotal">--</p>
+      </div>
+      <div class="bg-red-950/40 p-3 rounded-xl border border-red-800/50">
+        <p class="text-red-300 text-xs">Riesgo Deslave</p>
+        <p class="text-xl font-bold text-red-400 mt-1" id="kpiDeslave">--</p>
+      </div>
+      <div class="bg-blue-950/40 p-3 rounded-xl border border-blue-800/50">
+        <p class="text-blue-300 text-xs">Riesgo Crecida</p>
+        <p class="text-xl font-bold text-blue-400 mt-1" id="kpiInundacion">--</p>
+      </div>
+      <div class="bg-amber-950/40 p-3 rounded-xl border border-amber-800/50">
+        <p class="text-amber-300 text-xs">Riesgo Aislamiento</p>
+        <p class="text-xl font-bold text-amber-400 mt-1" id="kpiAislamiento">--</p>
+      </div>
+      <div class="bg-purple-950/40 p-3 rounded-xl border border-purple-800/50">
+        <p class="text-purple-300 text-xs">Tiempo Concentr.</p>
+        <p class="text-xl font-bold text-purple-300 mt-1" id="kpiTiempo">--</p>
+      </div>
+      <div class="bg-emerald-950/40 p-3 rounded-xl border border-emerald-800/50">
+        <p class="text-emerald-300 text-xs">Pob. Protegida</p>
+        <p class="text-xl font-bold text-emerald-400 mt-1" id="kpiPoblacion">--</p>
+      </div>
+    </div>
+
+    <!-- Mapa y Consola IA -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div class="lg:col-span-7 bg-slate-800 p-4 rounded-2xl border border-slate-700">
+        <div id="map"></div>
+      </div>
+
+      <div class="lg:col-span-5 bg-slate-800 p-4 rounded-2xl border border-slate-700 flex flex-col">
+        <div class="flex items-center justify-between border-b border-slate-700 pb-3 mb-3">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-robot text-cyan-400 text-lg"></i>
+            <h2 class="text-sm font-bold text-white">Comandante Táctico IA (Groq)</h2>
+          </div>
+          <span class="text-[10px] bg-emerald-900/50 text-emerald-300 border border-emerald-700 px-2 py-0.5 rounded-full">Backend Seguro</span>
+        </div>
+
+        <div class="space-y-3 flex-1 flex flex-col">
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">Comunidad / Sede:</label>
+            <select id="selectComunidad" class="w-full bg-slate-950 text-xs px-3 py-2 rounded-lg border border-slate-700 text-slate-200">
+              <option value="">-- Todas las Comunidades (Diagnóstico Global) --</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">Amenaza a Evaluar:</label>
+            <select id="selectAmenaza" class="w-full bg-slate-950 text-xs px-3 py-2 rounded-lg border border-slate-700 text-slate-200">
+              <option value="LLUVIAS_DESLAVES">🌧️ Lluvias Torrenciales, Deslaves y Desbordamientos</option>
+              <option value="AISLAMIENTO_VIAL">🚧 Riesgo de Aislamiento Vial y Acceso a Hospital</option>
+              <option value="OLA_CALOR">🔥 Olas de Calor y Estrés Térmico</option>
+              <option value="HELADAS">❄️ Heladas Severas</option>
+              <option value="URBANO_CONTAMINACION">🏭 Vulnerabilidad Urbana y Contaminación</option>
+            </select>
+          </div>
+
+          <button id="btnRunAI" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-medium text-xs py-2.5 rounded-lg transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-bolt"></i> Calcular Ventana de Acción con IA
+          </button>
+
+          <div id="aiOutput" class="flex-1 bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-300 font-mono overflow-y-auto max-h-56 custom-scrollbar">
+            Selecciona una comunidad y presiona calcular para recibir la orden táctica preventiva...
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="/src/app.js"></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sara-v2';
+const CACHE_NAME = 'sara-v3';
 const ASSETS = [
   '/',
   '/index.html',

@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-  // Solo permitir peticiones POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
@@ -7,7 +6,7 @@ export default async function handler(req, res) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     return res.status(500).json({ 
-      error: 'La variable GROQ_API_KEY no está configurada en Vercel.' 
+      error: 'La variable GROQ_API_KEY no está configurada en las variables de entorno de Vercel.' 
     });
   }
 
@@ -15,26 +14,26 @@ export default async function handler(req, res) {
 
   const promptSistema = `Eres el Comandante Táctico de Protección Civil y Gestión de Riesgos de la ONG SARA.
 Tu objetivo es emitir un reporte conciso, directo, urgente y operativo en español para los coordinadores de campo.
-Debes calcular y responder estrictamente con esta estructura:
+Debes responder obligatoriamente con esta estructura:
 
-1. ⚠️ DIAGNÓSTICO DEL RIESGO REAL (Evalúa según las pendientes, relieve, tipo de suelo y posición hidrológica).
-2. ⏱️ VENTANA DE TIEMPO DE ACCIÓN (Horas que tiene la ONG antes del impacto crítico según el tiempo de concentración hidrológico).
+1. ⚠️ DIAGNÓSTICO DEL RIESGO REAL (Evalúa según las pendientes, tipo de relieve y posición hidrológica).
+2. ⏱️ VENTANA DE TIEMPO DE ACCIÓN (Horas disponibles antes del impacto crítico según el tiempo de concentración hidrológico).
 3. 🚧 RIESGO DE AISLAMIENTO Y RUTAS (Considerando tipo de acceso vial y distancia al hospital).
-4. 📋 PROTOCOLO INMEDIATO DE 3 PASOS PARA EL PERSONAL DE LA ONG.`;
+4. 📋 PROTOCOLO INMEDIATO DE 3 PASOS PARA EL PERSONAL EN CAMPO.`;
 
   let promptUsuario = `Amenaza evaluada: ${amenaza}\n\n`;
 
   if (localidad) {
     promptUsuario += `DATOS DE CAMPO DE LA LOCALIDAD:
 - Nombre: ${localidad.NOM_LOC} (${localidad.NOM_MUN}, ${localidad.NOM_ENT})
-- Población: ${localidad.pobtot} hab. (Aguas arriba: ${localidad.poblacion_total_aguas_arriba})
-- Relieve: ${localidad.tipo_relieve} | Pendiente Media: ${localidad.pendiente_promedio_grados}° | Pendiente Máx: ${localidad.pendiente_maxima_grados}°
-- Hidrología: Posición ${localidad.posicion_hidrologica} | Distancia a cauce: ${localidad.distancia_al_cauce_principal_km} km
+- Población: ${localidad.pobtot} hab. (Población aguas arriba: ${localidad.poblacion_total_aguas_arriba})
+- Relieve: ${localidad.tipo_relieve} | Pendiente Media: ${localidad.pendiente_promedio_grados}° | Pendiente Máxima: ${localidad.pendiente_maxima_grados}°
+- Hidrología: Posición ${localidad.posicion_hidrologica} | Distancia al cauce: ${localidad.distancia_al_cauce_principal_km} km
 - Tiempo de Concentración (Tc): ${localidad.tiempo_concentracion_horas} horas
 - Vialidad: ${localidad.tipo_acceso_vial} | Distancia al Hospital: ${localidad.distancia_hospital_km} km
 - Pronóstico 24h: Lluvia: ${clima?.rain24h ?? 'N/D'} mm | Temp: ${clima?.tMin ?? 'N/D'}°C a ${clima?.tMax ?? 'N/D'}°C`;
   } else {
-    promptUsuario += `ANÁLISIS GLOBAL: Evalúa la red de 106 sedes de la ONG en Hidalgo, Puebla y Veracruz ante la alerta meteorológica actual.`;
+    promptUsuario += `ANÁLISIS GLOBAL: Evalúa la red completa de sedes de la ONG en Hidalgo, Puebla y Veracruz ante la alerta meteorológica actual.`;
   }
 
   try {
@@ -45,13 +44,13 @@ Debes calcular y responder estrictamente con esta estructura:
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "llama-3.1-8b-instant",
         messages: [
           { role: "system", content: promptSistema },
           { role: "user", content: promptUsuario }
         ],
         temperature: 0.2,
-        max_tokens: 900
+        max_tokens: 850
       })
     });
 

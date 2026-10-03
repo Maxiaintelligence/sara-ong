@@ -39,35 +39,33 @@
   </header>
 
   <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full space-y-6">
-    <!-- Grid de Indicadores -->
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
       <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
-        <p class="text-slate-400 text-xs">Oficinas / Sedes</p>
+        <p class="text-slate-400 text-xs font-medium">Oficinas / Sedes</p>
         <p class="text-xl font-bold text-white mt-1" id="kpiTotal">--</p>
       </div>
       <div class="bg-red-950/40 p-3 rounded-xl border border-red-800/50">
-        <p class="text-red-300 text-xs">Riesgo Deslave</p>
+        <p class="text-red-300 text-xs font-medium"><i class="fa-solid fa-hill-rockslide mr-1"></i>Riesgo Deslave</p>
         <p class="text-xl font-bold text-red-400 mt-1" id="kpiDeslave">--</p>
       </div>
       <div class="bg-blue-950/40 p-3 rounded-xl border border-blue-800/50">
-        <p class="text-blue-300 text-xs">Riesgo Crecida</p>
+        <p class="text-blue-300 text-xs font-medium"><i class="fa-solid fa-water mr-1"></i>Riesgo Crecida</p>
         <p class="text-xl font-bold text-blue-400 mt-1" id="kpiInundacion">--</p>
       </div>
       <div class="bg-amber-950/40 p-3 rounded-xl border border-amber-800/50">
-        <p class="text-amber-300 text-xs">Riesgo Aislamiento</p>
+        <p class="text-amber-300 text-xs font-medium"><i class="fa-solid fa-road-barrier mr-1"></i>Riesgo Aislamiento</p>
         <p class="text-xl font-bold text-amber-400 mt-1" id="kpiAislamiento">--</p>
       </div>
       <div class="bg-purple-950/40 p-3 rounded-xl border border-purple-800/50">
-        <p class="text-purple-300 text-xs">Tiempo Concentr.</p>
+        <p class="text-purple-300 text-xs font-medium"><i class="fa-solid fa-hourglass-half mr-1"></i>Tiempo Concentr.</p>
         <p class="text-xl font-bold text-purple-300 mt-1" id="kpiTiempo">--</p>
       </div>
       <div class="bg-emerald-950/40 p-3 rounded-xl border border-emerald-800/50">
-        <p class="text-emerald-300 text-xs">Pob. Protegida</p>
+        <p class="text-emerald-300 text-xs font-medium"><i class="fa-solid fa-users mr-1"></i>Pob. Protegida</p>
         <p class="text-xl font-bold text-emerald-400 mt-1" id="kpiPoblacion">--</p>
       </div>
     </div>
 
-    <!-- Mapa y Consola IA -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
       <div class="lg:col-span-7 bg-slate-800 p-4 rounded-2xl border border-slate-700">
         <div id="map"></div>
@@ -79,7 +77,7 @@
             <i class="fa-solid fa-robot text-cyan-400 text-lg"></i>
             <h2 class="text-sm font-bold text-white">Comandante Táctico IA (Groq)</h2>
           </div>
-          <span class="text-[10px] bg-emerald-900/50 text-emerald-300 border border-emerald-700 px-2 py-0.5 rounded-full">Backend Seguro</span>
+          <span class="text-[10px] bg-emerald-900/50 text-emerald-300 border border-emerald-700 px-2 py-0.5 rounded-full">Llama 3.1 8B</span>
         </div>
 
         <div class="space-y-3 flex-1 flex flex-col">
@@ -93,7 +91,7 @@
           <div>
             <label class="text-xs text-slate-400 block mb-1">Amenaza a Evaluar:</label>
             <select id="selectAmenaza" class="w-full bg-slate-950 text-xs px-3 py-2 rounded-lg border border-slate-700 text-slate-200">
-              <option value="LLUVIAS_DESLAVES">🌧️ Lluvias Torrenciales, Deslaves y Desbordamientos</option>
+              <option value="LLUVIAS_DESLAVES">🌧️ Lluvias Torrenciales, Deslaves y Crecidas</option>
               <option value="AISLAMIENTO_VIAL">🚧 Riesgo de Aislamiento Vial y Acceso a Hospital</option>
               <option value="OLA_CALOR">🔥 Olas de Calor y Estrés Térmico</option>
               <option value="HELADAS">❄️ Heladas Severas</option>
@@ -106,7 +104,7 @@
           </button>
 
           <div id="aiOutput" class="flex-1 bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-300 font-mono overflow-y-auto max-h-56 custom-scrollbar">
-            Selecciona una comunidad y presiona calcular para recibir la orden táctica preventiva...
+            Selecciona una comunidad y presiona el botón para recibir el reporte táctico preventivo...
           </div>
         </div>
       </div>

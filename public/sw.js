@@ -1,10 +1,10 @@
-const CACHE_NAME = 'sara-v1';
+const CACHE_NAME = 'sara-v2';
 const ASSETS = [
   '/',
   '/index.html',
-  '/src/data.js',
+  '/manifest.json',
   '/src/app.js',
-  '/public/manifest.json'
+  '/src/data.js'
 ];
 
 self.addEventListener('install', (e) => {

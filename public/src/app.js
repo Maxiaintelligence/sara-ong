@@ -4,24 +4,34 @@ let mapa, marcadores = [];
 let climaEnVivo = {};
 
 document.addEventListener("DOMContentLoaded", () => {
+  // Registro del Service Worker para PWA
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/public/sw.js');
+    navigator.serviceWorker.register('/sw.js')
+      .then(() => console.log("SARA PWA: Service Worker registrado con éxito"))
+      .catch((err) => console.log("Service Worker omitido:", err));
   }
+
   iniciarMapa();
   poblarSelects();
   calcularKPIs();
 
+  // Event Listeners
   document.getElementById("btnSyncWeather").addEventListener("click", sincronizarClimaEnVivo);
   document.getElementById("btnRunAI").addEventListener("click", ejecutarAnalisisIA);
   document.getElementById("selectComunidad").addEventListener("change", (e) => {
     const loc = LOCALIDADES.find(l => l.NOM_LOC === e.target.value);
-    if (loc && mapa) mapa.setView([loc.lat_dd, loc.lon_dd], 12);
+    if (loc && mapa) {
+      mapa.setView([loc.lat_dd, loc.lon_dd], 13);
+    }
   });
 });
 
 function iniciarMapa() {
   mapa = L.map('map').setView([20.25, -98.45], 8);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(mapa);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    maxZoom: 18
+  }).addTo(mapa);
   actualizarMarcadores();
 }
 
@@ -49,7 +59,16 @@ function actualizarMarcadores() {
       radius: 7, fillColor: r.color, color: "#fff", weight: 1.5, fillOpacity: 0.85
     }).addTo(mapa);
 
-    m.bindPopup(`<b>${loc.NOM_LOC}</b> (${loc.NOM_MUN})<br>Riesgo: ${r.label}<br>Pendiente Máx: ${loc.pendiente_maxima_grados}°<br>Acceso: ${loc.tipo_acceso_vial}`);
+    m.bindPopup(`
+      <div class="text-slate-900 text-xs font-sans">
+        <b class="text-sm">${loc.NOM_LOC}</b> (${loc.NOM_MUN})<br>
+        <b>Nivel de Riesgo:</b> <span style="color:${r.color}; font-weight:bold;">${r.label}</span><br>
+        <b>Relieve:</b> ${loc.tipo_relieve} (Pendiente Máx: ${loc.pendiente_maxima_grados}°)<br>
+        <b>Acceso Vial:</b> ${loc.tipo_acceso_vial}<br>
+        <b>Tiempo Concentración:</b> ${loc.tiempo_concentracion_horas}h<br>
+        <b>Dist. Hospital:</b> ${loc.distancia_hospital_km.toFixed(1)} km
+      </div>
+    `);
     marcadores.push(m);
   });
 }
@@ -88,7 +107,7 @@ async function sincronizarClimaEnVivo() {
   btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Sincronizando...`;
 
   try {
-    for (let loc of LOCALIDADES.slice(0, 15)) {
+    for (let loc of LOCALIDADES.slice(0, 20)) {
       const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.lat_dd}&longitude=${loc.lon_dd}&daily=precipitation_sum,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1`);
       const data = await res.json();
       if (data.daily) {
@@ -99,16 +118,16 @@ async function sincronizarClimaEnVivo() {
         };
       }
     }
-    alert("✅ Clima en tiempo real sincronizado.");
+    alert("✅ Clima satelital en tiempo real sincronizado.");
   } catch (err) {
-    alert("No se pudo conectar a Open-Meteo.");
+    alert("No se pudo conectar a Open-Meteo temporalmente.");
   } finally {
     btn.disabled = false;
     btn.innerHTML = `<i class="fa-solid fa-cloud-bolt"></i> Sincronizar Clima en Vivo`;
   }
 }
 
-// LLAMADA SEGURA AL BACKEND DE VERCEL
+// LLAMADA SEGURA AL BACKEND SERVERLESS DE GROQ EN VERCEL
 async function ejecutarAnalisisIA() {
   const out = document.getElementById("aiOutput");
   const btn = document.getElementById("btnRunAI");
@@ -118,7 +137,7 @@ async function ejecutarAnalisisIA() {
 
   btn.disabled = true;
   btn.innerHTML = `<i class="fa-solid fa-gear fa-spin"></i> Procesando con Groq...`;
-  out.innerHTML = `<span class="text-cyan-400 animate-pulse">Consultando servidor seguro en Vercel...</span>`;
+  out.innerHTML = `<span class="text-cyan-400 animate-pulse">SARA AI analizando datos de cuenca y pendientes en el servidor...</span>`;
 
   try {
     const res = await fetch("/api/analyze", {
@@ -134,7 +153,7 @@ async function ejecutarAnalisisIA() {
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
-    out.innerHTML = `<div class="text-slate-100 whitespace-pre-wrap font-sans">${data.analisis}</div>`;
+    out.innerHTML = `<div class="text-slate-100 whitespace-pre-wrap font-sans leading-relaxed">${data.analisis}</div>`;
   } catch (err) {
     out.innerHTML = `<span class="text-red-400">Error: ${err.message}</span>`;
   } finally {

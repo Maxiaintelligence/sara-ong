@@ -2,9 +2,5 @@
   "name": "sara-alerta-temprana-ong",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vercel dev",
-    "build": "echo 'Build completado con éxito'"
-  }
+  "type": "module"
 }

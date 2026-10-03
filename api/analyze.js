@@ -10,30 +10,44 @@ export default async function handler(req, res) {
     });
   }
 
-  const { localidad, amenaza, clima } = req.body;
+  const { localidad, amenaza, clima, pronostico3Dias } = req.body;
 
-  const promptSistema = `Eres el Comandante Táctico de Protección Civil y Gestión de Riesgos de la ONG SARA.
-Tu objetivo es emitir un reporte conciso, directo, urgente y operativo en español para los coordinadores de campo.
-Debes responder obligatoriamente con esta estructura:
+  const promptSistema = `Eres el Director Operativo de Protección Civil y Gestión de Emergencias de CÁRITAS PASTORAL SOCIAL (Arquidiócesis de Tulancingo).
+Tu misión es emitir dictámenes claros, directos, sin rodeos y altamente comprensibles para los párrocos, brigadistas y coordinadores comunitarios.
 
-1. ⚠️ DIAGNÓSTICO DEL RIESGO REAL (Evalúa según las pendientes, tipo de relieve y posición hidrológica).
-2. ⏱️ VENTANA DE TIEMPO DE ACCIÓN (Horas disponibles antes del impacto crítico según el tiempo de concentración hidrológico).
-3. 🚧 RIESGO DE AISLAMIENTO Y RUTAS (Considerando tipo de acceso vial y distancia al hospital).
-4. 📋 PROTOCOLO INMEDIATO DE 3 PASOS PARA EL PERSONAL EN CAMPO.`;
+Debes responder OBLIGATORIAMENTE respondiendo estas 4 preguntas exactas:
 
-  let promptUsuario = `Amenaza evaluada: ${amenaza}\n\n`;
+1. 🔴 ¿QUÉ POBLACIÓN ESTÁ EN RIESGO Y SU VULNERABILIDAD?
+   (Detalla la comunidad, habitantes en riesgo, acceso vial y si quedará incomunicada).
+
+2. ⚠️ ¿QUÉ RIESGO EXACTO TIENE?
+   (Explica si es deslave por ladera empinada, desbordamiento de río por posición baja en la cuenca, corte de caminos o choque térmico).
+
+3. ⏱️ ¿CUÁNDO VA A PASAR Y CUÁNTAS HORAS TIENEN PARA EVACUAR?
+   (Calcula la ventana de tiempo basándote en el Tiempo de Concentración Hidrológico y el pronóstico de Hoy, Mañana y Pasado Mañana).
+
+4. 💥 ¿DE QUÉ FUERZA ES EL PELIGRO?
+   (Nivel: EXTREMO / SEVERO / MODERADO, sustentado en la pendiente máxima, lluvia acumulada en mm y distancia al hospital más cercano).
+
+5. 📋 PROTOCOLO INMEDIATO DE 3 PASOS PARA LA BRIGADA PARROQUIAL DE CÁRITAS.`;
+
+  let promptUsuario = `Amenaza analizada: ${amenaza}\n\n`;
 
   if (localidad) {
-    promptUsuario += `DATOS DE CAMPO DE LA LOCALIDAD:
-- Nombre: ${localidad.NOM_LOC} (${localidad.NOM_MUN}, ${localidad.NOM_ENT})
-- Población: ${localidad.pobtot} hab. (Población aguas arriba: ${localidad.poblacion_total_aguas_arriba})
-- Relieve: ${localidad.tipo_relieve} | Pendiente Media: ${localidad.pendiente_promedio_grados}° | Pendiente Máxima: ${localidad.pendiente_maxima_grados}°
-- Hidrología: Posición ${localidad.posicion_hidrologica} | Distancia al cauce: ${localidad.distancia_al_cauce_principal_km} km
-- Tiempo de Concentración (Tc): ${localidad.tiempo_concentracion_horas} horas
-- Vialidad: ${localidad.tipo_acceso_vial} | Distancia al Hospital: ${localidad.distancia_hospital_km} km
-- Pronóstico 24h: Lluvia: ${clima?.rain24h ?? 'N/D'} mm | Temp: ${clima?.tMin ?? 'N/D'}°C a ${clima?.tMax ?? 'N/D'}°C`;
+    promptUsuario += `DATOS TÉCNICOS Y GEOMORFOLÓGICOS:
+- Localidad: ${localidad.NOM_LOC}, Municipio: ${localidad.NOM_MUN}, Estado: ${localidad.NOM_ENT}
+- Población en riesgo directo: ${localidad.pobtot} habitantes
+- Población acumulada aguas arriba: ${localidad.poblacion_total_aguas_arriba} habitantes
+- Topografía: ${localidad.tipo_relieve} con Pendiente Máxima de ${localidad.pendiente_maxima_grados}°
+- Hidrología: Posición ${localidad.posicion_hidrologica} en cuenca | Distancia al cauce: ${localidad.distancia_al_cauce_principal_km} km
+- Ventana de llegada de crecida (Tiempo de Concentración): ${localidad.tiempo_concentracion_horas} horas
+- Vulnerabilidad de Acceso: Camino tipo ${localidad.tipo_acceso_vial} | Distancia al hospital: ${localidad.distancia_hospital_km} km
+- PRONÓSTICO METEOROLÓGICO 3 DÍAS:
+  * HOY: Lluvia: ${pronostico3Dias?.hoy?.lluvia ?? clima?.rain24h ?? 0} mm | Temp: ${pronostico3Dias?.hoy?.tMin ?? '--'}° a ${pronostico3Dias?.hoy?.tMax ?? '--'}°C
+  * MAÑANA: Lluvia: ${pronostico3Dias?.manana?.lluvia ?? 0} mm | Temp: ${pronostico3Dias?.manana?.tMin ?? '--'}° a ${pronostico3Dias?.manana?.tMax ?? '--'}°C
+  * PASADO MAÑANA: Lluvia: ${pronostico3Dias?.pasado?.lluvia ?? 0} mm | Temp: ${pronostico3Dias?.pasado?.tMin ?? '--'}° a ${pronostico3Dias?.pasado?.tMax ?? '--'}°C`;
   } else {
-    promptUsuario += `ANÁLISIS GLOBAL: Evalúa la red completa de sedes de la ONG en Hidalgo, Puebla y Veracruz ante la alerta meteorológica actual.`;
+    promptUsuario += `DIAGNÓSTICO GENERAL: Evalúa la red completa de las 106 comunidades atendidas por la Diócesis de Tulancingo en Hidalgo, Sierra Norte de Puebla y Sierra de Huayacocotla Veracruz.`;
   }
 
   try {
@@ -50,7 +64,7 @@ Debes responder obligatoriamente con esta estructura:
           { role: "user", content: promptUsuario }
         ],
         temperature: 0.2,
-        max_tokens: 850
+        max_tokens: 950
       })
     });
 

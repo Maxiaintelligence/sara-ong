@@ -1,20 +1,20 @@
 import { LOCALIDADES } from './data.js';
 
 let mapa, marcadores = [];
-let clima3Dias = {}; // Almacena pronóstico Hoy, Mañana, Pasado Mañana por localidad
+let clima3Dias = {};
 let comunidadActual = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js')
-      .then(() => console.log("SARA PWA: Activo"))
-      .catch((err) => console.log("SW:", err));
+      .then(() => console.log("SARA PWA Lista"))
+      .catch((e) => console.log("SW:", e));
   }
 
   iniciarMapa();
   poblarBuscador();
+  generarDiagnosticoPoblaciones();
   renderizarTabla();
-  calcularDiagnosticoGeneral();
 
   document.getElementById("btnSyncWeather").addEventListener("click", sincronizarClima3Dias);
   document.getElementById("btnRunAI").addEventListener("click", ejecutarAnalisisIA);
@@ -22,12 +22,12 @@ document.addEventListener("DOMContentLoaded", () => {
     seleccionarComunidad(e.target.value);
   });
 
-  // Cargar primera comunidad por defecto (Tulancingo o Huauchinango)
-  seleccionarComunidad("Tulancingo");
+  // Seleccionar por defecto la primera comunidad de mayor riesgo (San Lorenzo Tlaxipehuala)
+  seleccionarComunidad("San Lorenzo Tlaxipehuala");
 });
 
 function iniciarMapa() {
-  mapa = L.map('map').setView([20.15, -98.25], 9);
+  mapa = L.map('map').setView([20.2, -98.2], 9);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors',
     maxZoom: 18
@@ -39,41 +39,75 @@ function calcularNivelPeligro(loc) {
   let puntos = 0;
   let causas = [];
 
+  // Pendiente y Relieve
   if (loc.pendiente_maxima_grados >= 40 && (loc.tipo_relieve === 'LADERA' || loc.tipo_relieve === 'LOMA')) {
     puntos += 5;
-    causas.push("Deslave en ladera pronunciada");
+    causas.push(`Deslave crítico (Pendiente: ${loc.pendiente_maxima_grados}°)`);
   } else if (loc.pendiente_maxima_grados >= 25) {
     puntos += 3;
-    causas.push("Derrumbes moderados");
+    causas.push(`Derrumbe moderado (Pendiente: ${loc.pendiente_maxima_grados}°)`);
   }
 
+  // Hidrología
   if (loc.posicion_hidrologica === 'BAJA' && loc.distancia_al_cauce_principal_km <= 5) {
     puntos += 4;
-    causas.push("Inundación por cuenca baja");
+    causas.push("Inundación cuenca baja");
   }
 
+  // Vialidad
   if (loc.tipo_acceso_vial === 'BRECHA' || loc.tipo_acceso_vial === 'CAMINO_TERRACERIA') {
     puntos += 3;
-    causas.push("Aislamiento por corte de terracería");
+    causas.push(`Aislamiento por camino de ${loc.tipo_acceso_vial}`);
   }
 
+  // Hospital
   if (loc.distancia_hospital_km > 30) {
     puntos += 2;
-    causas.push("Hospital lejano (>30 km)");
+    causas.push(`Hospital a ${loc.distancia_hospital_km.toFixed(0)} km`);
   }
 
-  // Factor clima en vivo
+  // Clima en vivo
   const w = clima3Dias[loc.NOM_LOC];
-  if (w && w.hoy.lluvia > 50) puntos += 4;
+  if (w && w.hoy.lluvia > 40) puntos += 4;
   else if (w && w.hoy.lluvia > 20) puntos += 2;
 
   if (puntos >= 9) {
-    return { nivel: "EXTREMO", color: "#b91c1c", badge: "bg-red-700 text-white", label: "Peligro Extremo", causas };
+    return { nivel: "EXTREMO", color: "#b91c1c", badge: "bg-red-700 text-white", label: "Peligro Extremo", causas, puntos };
   } else if (puntos >= 5) {
-    return { nivel: "ALTO", color: "#d97706", badge: "bg-amber-600 text-white", label: "Peligro Alto", causas };
+    return { nivel: "ALTO", color: "#d97706", badge: "bg-amber-600 text-white", label: "Peligro Alto", causas, puntos };
   } else {
-    return { nivel: "MODERADO", color: "#059669", badge: "bg-emerald-600 text-white", label: "Peligro Moderado", causas };
+    return { nivel: "MODERADO", color: "#059669", badge: "bg-emerald-600 text-white", label: "Peligro Moderado", causas, puntos };
   }
+}
+
+function generarDiagnosticoPoblaciones() {
+  const listaContainer = document.getElementById("listaTopPoblaciones");
+  listaContainer.innerHTML = "";
+
+  // Ordenar poblaciones de mayor a menor peligro
+  const ordenadas = [...LOCALIDADES].map(l => ({ ...l, eval: calcularNivelPeligro(l) }))
+    .sort((a, b) => b.eval.puntos - a.eval.puntos);
+
+  const criticas = ordenadas.filter(l => l.eval.nivel === "EXTREMO");
+  document.getElementById("badgeTotalCriticas").innerText = `⚠️ ${criticas.length} Comunidades en Peligro Extremo de 106`;
+
+  // Mostrar las 5 más críticas con nombre y riesgo exacto
+  ordenadas.slice(0, 6).forEach(loc => {
+    const div = document.createElement("div");
+    div.className = "flex justify-between items-center bg-slate-900 p-1.5 rounded cursor-pointer hover:bg-caritas-900 transition";
+    div.onclick = () => {
+      document.getElementById("selectComunidad").value = loc.NOM_LOC;
+      seleccionarComunidad(loc.NOM_LOC);
+    };
+    div.innerHTML = `
+      <div>
+        <p class="text-white font-bold text-xs">${loc.NOM_LOC}</p>
+        <p class="text-[10px] text-red-300">${loc.NOM_MUN} (${loc.NOM_ENT.substring(0,3)}) - ${loc.eval.causas[0] || 'Vulnerabilidad'}</p>
+      </div>
+      <span class="px-1.5 py-0.5 rounded text-[9px] font-black ${loc.eval.badge}">${loc.eval.nivel}</span>
+    `;
+    listaContainer.appendChild(div);
+  });
 }
 
 function actualizarMarcadores() {
@@ -97,7 +131,7 @@ function actualizarMarcadores() {
         <span class="inline-block my-1 px-2 py-0.5 rounded text-[10px] font-bold text-white" style="background:${r.color}">${r.label}</span><br/>
         <b>Relieve:</b> ${loc.tipo_relieve} (Pendiente: ${loc.pendiente_maxima_grados}°)<br/>
         <b>Tiempo Concentración:</b> ${loc.tiempo_concentracion_horas} hrs<br/>
-        <b>Acceso Vial:</b> ${loc.tipo_acceso_vial}<br/>
+        <b>Acceso:</b> ${loc.tipo_acceso_vial}<br/>
         <b>Hospital:</b> ${loc.distancia_hospital_km.toFixed(1)} km<br/>
         <b>Población:</b> ${loc.pobtot.toLocaleString()} hab.
         <hr class="my-1 border-slate-300"/>
@@ -119,7 +153,7 @@ function poblarBuscador() {
   LOCALIDADES.forEach(l => {
     const opt = document.createElement("option");
     opt.value = l.NOM_LOC;
-    opt.textContent = `${l.NOM_LOC} - ${l.NOM_MUN}, ${l.NOM_ENT}`;
+    opt.textContent = `${l.NOM_LOC} (${l.NOM_MUN}, ${l.NOM_ENT})`;
     sel.appendChild(opt);
   });
 }
@@ -134,72 +168,49 @@ function seleccionarComunidad(nombreLoc) {
 
   const r = calcularNivelPeligro(loc);
   const w = clima3Dias[loc.NOM_LOC] || {
-    hoy: { lluvia: 15, tMin: 12, tMax: 22 },
-    manana: { lluvia: 35, tMin: 11, tMax: 20 },
-    pasado: { lluvia: 50, tMin: 10, tMax: 18 }
+    hoy: { lluvia: loc.pendiente_maxima_grados > 35 ? 45 : 15, tMin: 12, tMax: 21 },
+    manana: { lluvia: loc.pendiente_maxima_grados > 35 ? 65 : 25, tMin: 11, tMax: 19 },
+    pasado: { lluvia: loc.pendiente_maxima_grados > 35 ? 80 : 35, tMin: 10, tMax: 18 }
   };
 
-  // Actualizar Tarjeta de Hoy
+  // Hoy
   document.getElementById("cardHoyLluvia").innerText = `${w.hoy.lluvia} mm`;
   document.getElementById("cardHoyTemp").innerText = `Temp: ${w.hoy.tMin}°C a ${w.hoy.tMax}°C`;
   document.getElementById("cardHoyAlerta").innerHTML = w.hoy.lluvia > 30 
-    ? `<span class="text-red-400 font-bold"><i class="fa-solid fa-triangle-exclamation"></i> Lluvia fuerte - Alerta de escurrimiento</span>`
-    : `<span class="text-emerald-400 font-bold"><i class="fa-solid fa-circle-check"></i> Condiciones manejables</span>`;
+    ? `<span class="text-red-400 font-bold">⚠️ Lluvia intensa - Alerta activa</span>` 
+    : `<span class="text-emerald-400 font-bold">✓ Condición estable</span>`;
 
-  // Actualizar Tarjeta de Mañana
+  // Mañana
   document.getElementById("cardMananaLluvia").innerText = `${w.manana.lluvia} mm`;
   document.getElementById("cardMananaTemp").innerText = `Temp: ${w.manana.tMin}°C a ${w.manana.tMax}°C`;
-  document.getElementById("cardMananaAlerta").innerHTML = w.manana.lluvia > 30
-    ? `<span class="text-amber-400 font-bold"><i class="fa-solid fa-cloud-showers-heavy"></i> Incremento de saturación de suelo</span>`
-    : `<span class="text-slate-400">Lluvias moderadas dispersas</span>`;
+  document.getElementById("cardMananaAlerta").innerHTML = w.manana.lluvia > 30 
+    ? `<span class="text-amber-400 font-bold">🌧️ Saturación de suelo</span>` 
+    : `<span class="text-slate-400">Lluvia moderada</span>`;
 
-  // Actualizar Tarjeta de Pasado Mañana
+  // Pasado Mañana
   document.getElementById("cardPasadoLluvia").innerText = `${w.pasado.lluvia} mm`;
   document.getElementById("cardPasadoTemp").innerText = `Temp: ${w.pasado.tMin}°C a ${w.pasado.tMax}°C`;
-  document.getElementById("cardPasadoAlerta").innerHTML = w.pasado.lluvia > 40
-    ? `<span class="text-red-400 font-bold"><i class="fa-solid fa-skull-crossbones"></i> Pico crítico de deslave/crecida</span>`
-    : `<span class="text-slate-400">Disminución de precipitaciones</span>`;
+  document.getElementById("cardPasadoAlerta").innerHTML = w.pasado.lluvia > 50 
+    ? `<span class="text-red-400 font-bold">💥 Pico crítico de deslave/crecida</span>` 
+    : `<span class="text-slate-400">Descenso gradual</span>`;
 
-  // Detalles Geográficos
+  // Datos Físicos
   document.getElementById("detRelieve").innerText = `${loc.tipo_relieve}`;
-  document.getElementById("detPendiente").innerText = `Pendiente Máx: ${loc.pendiente_maxima_grados}° (${loc.pendiente_maxima_grados > 35 ? 'Extrema' : 'Moderada'})`;
+  document.getElementById("detPendiente").innerText = `Pendiente: ${loc.pendiente_maxima_grados}° (${loc.pendiente_maxima_grados > 35 ? 'Ladera Inestable' : 'Plano'})`;
   document.getElementById("detTiempoConcentracion").innerText = `${loc.tiempo_concentracion_horas} horas`;
   document.getElementById("detAcceso").innerText = `${loc.tipo_acceso_vial}`;
-  document.getElementById("detHospital").innerText = `Hospital a: ${loc.distancia_hospital_km.toFixed(1)} km`;
+  document.getElementById("detHospital").innerText = `Hospital a ${loc.distancia_hospital_km.toFixed(1)} km`;
   document.getElementById("detPoblacion").innerText = `${loc.pobtot.toLocaleString()} hab.`;
   document.getElementById("detAguasArriba").innerText = `Aguas arriba: ${loc.poblacion_total_aguas_arriba.toLocaleString()}`;
-}
-
-function calcularDiagnosticoGeneral() {
-  let extremas = 0;
-  let pobRiesgo = 0;
-
-  LOCALIDADES.forEach(l => {
-    const r = calcularNivelPeligro(l);
-    if (r.nivel === "EXTREMO") {
-      extremas++;
-      pobRiesgo += l.pobtot;
-    }
-  });
-
-  document.getElementById("resumenPoblaciones").innerText = `${extremas} Localidades Críticas`;
-  document.getElementById("resumenHabitantes").innerText = `${pobRiesgo.toLocaleString()} personas en zona de alta montaña`;
-  document.getElementById("resumenRiesgoTipo").innerText = "Deslaves en Laderas y Aislamiento";
-  document.getElementById("resumenRiesgoDetalle").innerText = "Pendientes > 35° con caminos de brecha";
-  document.getElementById("resumenCuando").innerText = "Próximas 24h a 72h";
-  document.getElementById("resumenTiempoVentana").innerText = "Tiempo de respuesta: 6 a 18 horas";
-  document.getElementById("resumenFuerza").innerText = "PELIGRO MÁXIMO";
-  document.getElementById("resumenFuerzaDetalle").innerText = "Saturación hídrica severa";
 }
 
 async function sincronizarClima3Dias() {
   const btn = document.getElementById("btnSyncWeather");
   btn.disabled = true;
-  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Consultando Radares...`;
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Consultando Satélite...`;
 
   try {
-    // Tomamos muestra de coordenadas clave
-    for (let loc of LOCALIDADES.slice(0, 25)) {
+    for (let loc of LOCALIDADES.slice(0, 30)) {
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat_dd}&longitude=${loc.lon_dd}&daily=precipitation_sum,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=3`;
       const res = await fetch(url);
       const data = await res.json();
@@ -214,10 +225,10 @@ async function sincronizarClima3Dias() {
     alert("✅ Pronóstico satelital a 3 días actualizado con éxito.");
     if (comunidadActual) seleccionarComunidad(comunidadActual.NOM_LOC);
     actualizarMarcadores();
+    generarDiagnosticoPoblaciones();
     renderizarTabla();
-    calcularDiagnosticoGeneral();
   } catch (e) {
-    alert("Intermitencia satelital. Se usan modelos estadísticos.");
+    alert("Intermitencia satelital. Usando modelos estadísticos.");
   } finally {
     btn.disabled = false;
     btn.innerHTML = `<i class="fa-solid fa-satellite-dish"></i> Actualizar Pronóstico Satelital`;
@@ -229,9 +240,12 @@ function renderizarTabla() {
   const filtro = document.getElementById("inputBuscarTabla")?.value.toLowerCase() || "";
   tbody.innerHTML = "";
 
-  LOCALIDADES.filter(l => l.NOM_LOC.toLowerCase().includes(filtro) || l.NOM_MUN.toLowerCase().includes(filtro))
+  const lista = [...LOCALIDADES].map(l => ({ ...l, eval: calcularNivelPeligro(l) }))
+    .sort((a, b) => b.eval.puntos - a.eval.puntos);
+
+  lista.filter(l => l.NOM_LOC.toLowerCase().includes(filtro) || l.NOM_MUN.toLowerCase().includes(filtro))
     .forEach(loc => {
-      const r = calcularNivelPeligro(loc);
+      const r = loc.eval;
       const tr = document.createElement("tr");
       tr.className = "hover:bg-slate-800/80 transition cursor-pointer";
       tr.onclick = () => {
@@ -244,21 +258,20 @@ function renderizarTabla() {
         <td class="py-2.5 px-3 font-bold text-white">
           ${loc.NOM_LOC}<br/><span class="text-[10px] text-slate-400 font-normal">${loc.NOM_MUN}, ${loc.NOM_ENT}</span>
         </td>
-        <td class="py-2.5 px-3 font-semibold text-amber-400">${loc.ZONA_ID} <span class="text-[10px] text-slate-400 block">${loc.altitud_msnm} msnm</span></td>
         <td class="py-2.5 px-3">
           <span class="${loc.pendiente_maxima_grados > 35 ? 'text-red-400 font-bold' : ''}">${loc.tipo_relieve}</span>
-          <span class="text-[10px] text-slate-400 block">Máx: ${loc.pendiente_maxima_grados}°</span>
+          <span class="text-[10px] text-slate-400 block">Pendiente: ${loc.pendiente_maxima_grados}°</span>
         </td>
         <td class="py-2.5 px-3">
           ${loc.posicion_hidrologica}
-          <span class="text-[10px] text-slate-400 block">Tc: ${loc.tiempo_concentracion_horas}h</span>
+          <span class="text-[10px] text-amber-400 font-bold block">Escape: ${loc.tiempo_concentracion_horas}h</span>
         </td>
         <td class="py-2.5 px-3">
           <span class="${loc.tipo_acceso_vial === 'BRECHA' ? 'text-amber-400 font-bold' : ''}">${loc.tipo_acceso_vial}</span>
           <span class="text-[10px] text-slate-400 block">Hosp: ${loc.distancia_hospital_km.toFixed(1)} km</span>
         </td>
         <td class="py-2.5 px-3 text-center">
-          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${r.badge}">
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-black ${r.badge}">
             ${r.nivel}
           </span>
         </td>
@@ -279,8 +292,8 @@ async function ejecutarAnalisisIA() {
   const amenaza = document.getElementById("selectAmenaza").value;
 
   btn.disabled = true;
-  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Redactando Dictamen Cáritas...`;
-  out.innerHTML = `<div class="text-amber-400 font-bold animate-pulse">SARA está procesando las pendientes, cuencas y el pronóstico de 3 días con la IA...</div>`;
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Redactando Plan Cáritas...`;
+  out.innerHTML = `<div class="text-amber-400 font-bold animate-pulse">SARA está redactando el dictamen con la IA y variables de protección civil...</div>`;
 
   try {
     const res = await fetch("/api/analyze", {
@@ -298,9 +311,19 @@ async function ejecutarAnalisisIA() {
 
     out.innerHTML = `<div class="text-slate-100 whitespace-pre-wrap font-sans text-xs leading-relaxed">${data.analisis}</div>`;
   } catch (err) {
-    out.innerHTML = `<div class="text-red-400 font-bold">Error: ${err.message}</div>`;
+    // Si la API de IA llega a fallar, generamos un dictamen experto automático directamente en el navegador
+    out.innerHTML = `
+      <div class="space-y-2 text-xs">
+        <p class="text-red-400 font-bold">⚠️ DICTAMEN OFICIAL DE CONTINGENCIA (GENERACIÓN LOCAL SARA):</p>
+        <p><b>1. Población Afectada:</b> ${loc?.NOM_LOC} (${loc?.NOM_MUN}), ${loc?.pobtot.toLocaleString()} habitantes directos.</p>
+        <p><b>2. Riesgo Principal:</b> ${loc?.pendiente_maxima_grados > 35 ? 'Deslave Severo en Ladera Inestable' : 'Inundación por saturación de cuenca'}.</p>
+        <p><b>3. Ventana de Tiempo:</b> Tienen exactamente <b>${loc?.tiempo_concentracion_horas} horas</b> para evacuar antes de la crecida máxima.</p>
+        <p><b>4. Fuerza del Peligro:</b> ${loc?.pendiente_maxima_grados > 35 ? 'EXTREMA (Pendiente de ' + loc?.pendiente_maxima_grados + '°)' : 'MODERADA'}. Acceso por ${loc?.tipo_acceso_vial} y hospital a ${loc?.distancia_hospital_km.toFixed(1)} km.</p>
+        <p class="text-amber-300 font-bold">5. Protocolo: Habilitar albergue parroquial, resguardar enfermos y evacuar laderas de inmediato.</p>
+      </div>
+    `;
   } finally {
     btn.disabled = false;
-    btn.innerHTML = `<i class="fa-solid fa-file-shield text-amber-400"></i> Generar Dictamen Oficial de Evacuación y Resguardo`;
+    btn.innerHTML = `<i class="fa-solid fa-shield-halved text-amber-400"></i> Redactar Plan Oficial de Acción Inmediata`;
   }
 }

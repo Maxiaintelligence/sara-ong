@@ -3,113 +3,295 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SARA - Sistema de Alerta Temprana ONG</title>
+  <title>SARA | Cáritas Pastoral Social Tulancingo</title>
   <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#0284c7" />
+  <meta name="theme-color" content="#8b0000" />
 
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            caritas: {
+              950: '#350000',
+              900: '#550000',
+              800: '#750000',
+              700: '#8B0000', // Rojo Cáritas Tulancingo
+              600: '#A30000',
+              500: '#C00000',
+              100: '#FEE2E2'
+            }
+          }
+        }
+      }
+    }
+  </script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
   <style>
-    #map { height: 420px; width: 100%; border-radius: 0.75rem; }
+    #map { height: 440px; width: 100%; border-radius: 0.75rem; }
     .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #991b1b; border-radius: 4px; }
   </style>
 </head>
 
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
-  <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50 px-4 py-3 shadow-lg">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
+
+  <!-- CABECERA INSTITUCIONAL ROJO CÁRITAS TULANCINGO -->
+  <header class="bg-caritas-800 border-b-4 border-amber-400 sticky top-0 z-50 px-4 py-3 shadow-2xl">
     <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-3">
       <div class="flex items-center space-x-3">
-        <div class="bg-red-600/20 text-red-400 p-2.5 rounded-xl border border-red-500/30">
-          <i class="fa-solid fa-triangle-exclamation text-xl animate-pulse"></i>
+        <div class="bg-white p-2 rounded-xl text-caritas-800 shadow-md">
+          <i class="fa-solid fa-cross text-2xl font-black"></i>
         </div>
         <div>
-          <h1 class="text-lg font-bold text-white tracking-wide">SARA | Alerta Temprana ONG</h1>
-          <p class="text-xs text-slate-400">Monitoreo Hidrogeológico y Multirriesgo Comunitario</p>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl font-black text-white tracking-wide">SARA</h1>
+            <span class="bg-amber-400 text-slate-950 text-[10px] font-extrabold px-2 py-0.5 rounded-full">EN VIVO</span>
+          </div>
+          <p class="text-xs text-red-100 font-medium">Sistema de Alerta y Respuesta Automática | Cáritas Pastoral Social Tulancingo</p>
         </div>
       </div>
 
-      <button id="btnSyncWeather" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition flex items-center gap-2">
-        <i class="fa-solid fa-cloud-bolt"></i> Sincronizar Clima en Vivo
+      <button id="btnSyncWeather" class="bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black px-4 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2">
+        <i class="fa-solid fa-satellite-dish"></i> Actualizar Pronóstico Satelital
       </button>
     </div>
   </header>
 
+  <!-- CUERPO PRINCIPAL -->
   <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full space-y-6">
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-      <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
-        <p class="text-slate-400 text-xs font-medium">Oficinas / Sedes</p>
-        <p class="text-xl font-bold text-white mt-1" id="kpiTotal">--</p>
+
+    <!-- SECCIÓN 1: LAS 4 PREGUNTAS FUNDAMENTALES (TABLERO DIRECTO) -->
+    <div class="bg-slate-900 border-2 border-caritas-700/60 rounded-2xl p-5 shadow-2xl">
+      <div class="border-b border-slate-800 pb-3 mb-4 flex justify-between items-center flex-wrap gap-2">
+        <div>
+          <h2 class="text-base font-black text-white uppercase tracking-wider flex items-center gap-2">
+            <i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Diagnóstico Operativo de Emergencia
+          </h2>
+          <p class="text-xs text-slate-400">Respuesta táctica inmediata para coordinadores de zona y párrocos</p>
+        </div>
+        <span class="bg-red-950 text-red-300 border border-red-700 px-3 py-1 rounded-lg text-xs font-bold" id="badgeTotalCriticas">
+          Calculando zonas de impacto...
+        </span>
       </div>
-      <div class="bg-red-950/40 p-3 rounded-xl border border-red-800/50">
-        <p class="text-red-300 text-xs font-medium"><i class="fa-solid fa-hill-rockslide mr-1"></i>Riesgo Deslave</p>
-        <p class="text-xl font-bold text-red-400 mt-1" id="kpiDeslave">--</p>
-      </div>
-      <div class="bg-blue-950/40 p-3 rounded-xl border border-blue-800/50">
-        <p class="text-blue-300 text-xs font-medium"><i class="fa-solid fa-water mr-1"></i>Riesgo Crecida</p>
-        <p class="text-xl font-bold text-blue-400 mt-1" id="kpiInundacion">--</p>
-      </div>
-      <div class="bg-amber-950/40 p-3 rounded-xl border border-amber-800/50">
-        <p class="text-amber-300 text-xs font-medium"><i class="fa-solid fa-road-barrier mr-1"></i>Riesgo Aislamiento</p>
-        <p class="text-xl font-bold text-amber-400 mt-1" id="kpiAislamiento">--</p>
-      </div>
-      <div class="bg-purple-950/40 p-3 rounded-xl border border-purple-800/50">
-        <p class="text-purple-300 text-xs font-medium"><i class="fa-solid fa-hourglass-half mr-1"></i>Tiempo Concentr.</p>
-        <p class="text-xl font-bold text-purple-300 mt-1" id="kpiTiempo">--</p>
-      </div>
-      <div class="bg-emerald-950/40 p-3 rounded-xl border border-emerald-800/50">
-        <p class="text-emerald-300 text-xs font-medium"><i class="fa-solid fa-users mr-1"></i>Pob. Protegida</p>
-        <p class="text-xl font-bold text-emerald-400 mt-1" id="kpiPoblacion">--</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+        
+        <!-- 1. POBLACIONES EN RIESGO -->
+        <div class="bg-slate-950 p-4 rounded-xl border-l-4 border-red-600 space-y-2">
+          <p class="text-red-400 font-black uppercase text-[11px] flex items-center gap-1.5">
+            <i class="fa-solid fa-users-rays"></i> 1. ¿Qué Poblaciones?
+          </p>
+          <div id="listaTopPoblaciones" class="space-y-1.5 font-bold text-white text-xs max-h-32 overflow-y-auto custom-scrollbar">
+            <!-- Dinámico -->
+          </div>
+        </div>
+
+        <!-- 2. QUÉ RIESGO ES -->
+        <div class="bg-slate-950 p-4 rounded-xl border-l-4 border-amber-500 space-y-2">
+          <p class="text-amber-400 font-black uppercase text-[11px] flex items-center gap-1.5">
+            <i class="fa-solid fa-volcano"></i> 2. ¿Qué Riesgo Es?
+          </p>
+          <div class="space-y-1 text-slate-200">
+            <p><b class="text-red-400">• Deslaves Catastróficos:</b> En laderas > 40° en Sierra Norte y Huayacocotla.</p>
+            <p><b class="text-blue-400">• Crecidas Repentinas:</b> En cauces y llanuras de cuenca baja.</p>
+            <p><b class="text-amber-400">• Aislamiento Vial:</b> Por deslaves en terracerías y brechas.</p>
+          </div>
+        </div>
+
+        <!-- 3. CUÁNDO VA A PASAR -->
+        <div class="bg-slate-950 p-4 rounded-xl border-l-4 border-blue-500 space-y-2">
+          <p class="text-blue-400 font-black uppercase text-[11px] flex items-center gap-1.5">
+            <i class="fa-solid fa-clock"></i> 3. ¿Cuándo Ocurre?
+          </p>
+          <div class="space-y-1 text-slate-200">
+            <p><b class="text-white">• Pico Crítico:</b> Próximas 24 a 72 horas.</p>
+            <p><b class="text-amber-300">• Ventana de Evacuación:</b> 4.7 h a 24.0 h (según tiempo de concentración de la cuenca).</p>
+            <p class="text-[10px] text-slate-400">Actuar antes de la noche.</p>
+          </div>
+        </div>
+
+        <!-- 4. QUÉ FUERZA TIENE -->
+        <div class="bg-slate-950 p-4 rounded-xl border-l-4 border-purple-500 space-y-2">
+          <p class="text-purple-400 font-black uppercase text-[11px] flex items-center gap-1.5">
+            <i class="fa-solid fa-gauge-high"></i> 4. ¿Qué Fuerza Tiene?
+          </p>
+          <div class="space-y-1 text-slate-200">
+            <p><span class="bg-red-700 text-white font-bold px-2 py-0.5 rounded text-[10px]">EXTREMA</span> Laderas > 45°</p>
+            <p><span class="bg-amber-600 text-white font-bold px-2 py-0.5 rounded text-[10px]">SEVERA</span> Lomas > 25° y Brechas</p>
+            <p class="text-[10px] text-slate-400 mt-1">Hospitales a más de 30 km aumentan la letalidad.</p>
+          </div>
+        </div>
+
       </div>
     </div>
 
+    <!-- SECCIÓN 2: BUSCADOR DE CUALQUIER COMUNIDAD Y CONDICIÓN A 3 DÍAS -->
+    <div class="bg-caritas-950/60 border border-caritas-700/60 rounded-2xl p-5 shadow-2xl">
+      <div class="flex flex-wrap justify-between items-center gap-4 mb-4">
+        <div>
+          <h2 class="text-lg font-black text-white flex items-center gap-2">
+            <i class="fa-solid fa-magnifying-glass-location text-amber-400"></i> Ficha de Riesgo por Población Específica
+          </h2>
+          <p class="text-xs text-red-200">Elige cualquier comunidad para ver su condición exacta de Hoy, Mañana y Pasado Mañana</p>
+        </div>
+
+        <div class="w-full md:w-96">
+          <select id="selectComunidad" class="w-full bg-slate-900 border-2 border-amber-400 text-white text-xs font-bold px-3 py-2.5 rounded-xl shadow-inner focus:outline-none">
+            <option value="">-- Buscar / Seleccionar Población --</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- TARJETAS A 3 DÍAS -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <!-- HOY -->
+        <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 relative">
+          <span class="absolute top-2 right-2 bg-caritas-700 text-white text-[10px] font-bold px-2 py-0.5 rounded">HOY</span>
+          <p class="text-xs text-slate-400 font-bold">Lluvia Acumulada</p>
+          <p class="text-2xl font-black text-white mt-1" id="cardHoyLluvia">-- mm</p>
+          <p class="text-xs text-slate-300 mt-0.5" id="cardHoyTemp">Temp: --°C</p>
+          <div class="mt-2 text-xs font-bold" id="cardHoyAlerta">--</div>
+        </div>
+
+        <!-- MAÑANA -->
+        <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 relative">
+          <span class="absolute top-2 right-2 bg-blue-700 text-white text-[10px] font-bold px-2 py-0.5 rounded">MAÑANA</span>
+          <p class="text-xs text-slate-400 font-bold">Pronóstico Lluvia</p>
+          <p class="text-2xl font-black text-white mt-1" id="cardMananaLluvia">-- mm</p>
+          <p class="text-xs text-slate-300 mt-0.5" id="cardMananaTemp">Temp: --°C</p>
+          <div class="mt-2 text-xs font-bold" id="cardMananaAlerta">--</div>
+        </div>
+
+        <!-- PASADO MAÑANA -->
+        <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 relative">
+          <span class="absolute top-2 right-2 bg-purple-700 text-white text-[10px] font-bold px-2 py-0.5 rounded">PASADO MAÑANA</span>
+          <p class="text-xs text-slate-400 font-bold">Pronóstico Lluvia</p>
+          <p class="text-2xl font-black text-white mt-1" id="cardPasadoLluvia">-- mm</p>
+          <p class="text-xs text-slate-300 mt-0.5" id="cardPasadoTemp">Temp: --°C</p>
+          <div class="mt-2 text-xs font-bold" id="cardPasadoAlerta">--</div>
+        </div>
+      </div>
+
+      <!-- DETALLES DE GEOGRAFÍA Y ACCESO DE LA POBLACIÓN -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs mt-4">
+        <div class="bg-slate-900 p-3 rounded-xl border border-slate-800">
+          <span class="text-slate-400">Relieve / Pendiente:</span>
+          <p class="text-white font-bold mt-0.5" id="detRelieve">--</p>
+          <span class="text-red-400 font-semibold text-[11px]" id="detPendiente">--</span>
+        </div>
+        <div class="bg-slate-900 p-3 rounded-xl border border-slate-800">
+          <span class="text-slate-400">Tiempo de Concentración:</span>
+          <p class="text-amber-400 font-bold mt-0.5" id="detTiempoConcentracion">--</p>
+          <span class="text-slate-400 text-[11px]">Margen para evacuar</span>
+        </div>
+        <div class="bg-slate-900 p-3 rounded-xl border border-slate-800">
+          <span class="text-slate-400">Acceso Vial / Hospital:</span>
+          <p class="text-white font-bold mt-0.5" id="detAcceso">--</p>
+          <span class="text-slate-400 text-[11px]" id="detHospital">--</span>
+        </div>
+        <div class="bg-slate-900 p-3 rounded-xl border border-slate-800">
+          <span class="text-slate-400">Población Expuesta:</span>
+          <p class="text-emerald-400 font-bold mt-0.5" id="detPoblacion">--</p>
+          <span class="text-slate-400 text-[11px]" id="detAguasArriba">--</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 3: MAPA Y COMANDANTE DE DECISIÓN IA -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      <div class="lg:col-span-7 bg-slate-800 p-4 rounded-2xl border border-slate-700">
+      
+      <!-- MAPA -->
+      <div class="lg:col-span-7 bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col justify-between">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-sm font-black text-white flex items-center gap-2">
+            <i class="fa-solid fa-map-location-dot text-caritas-600"></i> Mapa de Sedes Cáritas Tulancingo
+          </h2>
+          <div class="flex items-center gap-2 text-[11px]">
+            <span class="text-red-400 font-bold">● Peligro Extremo</span>
+            <span class="text-amber-400 font-bold">● Alto</span>
+            <span class="text-emerald-400 font-bold">● Moderado</span>
+          </div>
+        </div>
         <div id="map"></div>
       </div>
 
-      <div class="lg:col-span-5 bg-slate-800 p-4 rounded-2xl border border-slate-700 flex flex-col">
-        <div class="flex items-center justify-between border-b border-slate-700 pb-3 mb-3">
+      <!-- DICTAMEN DE IA -->
+      <div class="lg:col-span-5 bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
           <div class="flex items-center gap-2">
-            <i class="fa-solid fa-robot text-cyan-400 text-lg"></i>
-            <h2 class="text-sm font-bold text-white">Comandante Táctico IA (Groq)</h2>
+            <i class="fa-solid fa-file-signature text-amber-400 text-lg"></i>
+            <h2 class="text-sm font-black text-white">Dictamen Oficial de Evacuación SARA</h2>
           </div>
-          <span class="text-[10px] bg-emerald-900/50 text-emerald-300 border border-emerald-700 px-2 py-0.5 rounded-full">Llama 3.1 8B</span>
+          <span class="text-[10px] bg-caritas-900 text-red-200 border border-caritas-700 px-2 py-0.5 rounded-full font-bold">Pastoral Social</span>
         </div>
 
         <div class="space-y-3 flex-1 flex flex-col">
           <div>
-            <label class="text-xs text-slate-400 block mb-1">Comunidad / Sede:</label>
-            <select id="selectComunidad" class="w-full bg-slate-950 text-xs px-3 py-2 rounded-lg border border-slate-700 text-slate-200">
-              <option value="">-- Todas las Comunidades (Diagnóstico Global) --</option>
-            </select>
-          </div>
-
-          <div>
             <label class="text-xs text-slate-400 block mb-1">Amenaza a Evaluar:</label>
-            <select id="selectAmenaza" class="w-full bg-slate-950 text-xs px-3 py-2 rounded-lg border border-slate-700 text-slate-200">
-              <option value="LLUVIAS_DESLAVES">🌧️ Lluvias Torrenciales, Deslaves y Crecidas</option>
-              <option value="AISLAMIENTO_VIAL">🚧 Riesgo de Aislamiento Vial y Acceso a Hospital</option>
-              <option value="OLA_CALOR">🔥 Olas de Calor y Estrés Térmico</option>
-              <option value="HELADAS">❄️ Heladas Severas</option>
-              <option value="URBANO_CONTAMINACION">🏭 Vulnerabilidad Urbana y Contaminación</option>
+            <select id="selectAmenaza" class="w-full bg-slate-950 text-xs px-3 py-2 rounded-lg border border-slate-700 text-white font-semibold focus:outline-none">
+              <option value="LLUVIAS_DESLAVES">🌧️ Lluvias Torrenciales, Deslaves y Desbordamientos</option>
+              <option value="AISLAMIENTO_VIAL">🚧 Riesgo de Aislamiento y Colapso de Caminos</option>
+              <option value="OLA_CALOR">🔥 Olas de Calor y Sequía</option>
+              <option value="HELADAS">❄️ Heladas Severas en Llanos</option>
+              <option value="URBANO_CONTAMINACION">🏭 Contingencia Urbana</option>
             </select>
           </div>
 
-          <button id="btnRunAI" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-medium text-xs py-2.5 rounded-lg transition flex items-center justify-center gap-2">
-            <i class="fa-solid fa-bolt"></i> Calcular Ventana de Acción con IA
+          <button id="btnRunAI" class="w-full bg-caritas-700 hover:bg-caritas-600 text-white font-black text-xs py-3 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-shield-halved text-amber-400"></i> Redactar Plan Oficial de Acción Inmediata
           </button>
 
-          <div id="aiOutput" class="flex-1 bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-300 font-mono overflow-y-auto max-h-56 custom-scrollbar">
-            Selecciona una comunidad y presiona el botón para recibir el reporte táctico preventivo...
+          <div id="aiOutput" class="flex-1 bg-slate-950 p-3.5 rounded-xl border border-slate-800 text-xs text-slate-200 font-sans leading-relaxed overflow-y-auto max-h-56 custom-scrollbar">
+            Presiona el botón para generar el plan de contingencia detallado para los párrocos y brigadistas comunitarios.
           </div>
         </div>
       </div>
+
     </div>
+
+    <!-- SECCIÓN 4: TABLA COMPLETA CON SEMÁFORO DE LAS 106 LOCALIDADES -->
+    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl">
+      <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
+        <div>
+          <h2 class="text-sm font-black text-white flex items-center gap-2">
+            <i class="fa-solid fa-table-list text-caritas-600"></i> Directorio y Nivel de Peligro por Población
+          </h2>
+          <p class="text-xs text-slate-400">Ordenadas de mayor a menor vulnerabilidad</p>
+        </div>
+
+        <input type="text" id="inputBuscarTabla" oninput="renderizarTabla()" placeholder="Buscar municipio o localidad..." 
+               class="bg-slate-950 text-xs px-3 py-2 rounded-lg border border-slate-700 text-white focus:outline-none focus:border-caritas-600 w-64" />
+      </div>
+
+      <div class="overflow-x-auto custom-scrollbar">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr class="border-b border-slate-800 text-slate-400 bg-slate-950">
+              <th class="py-2.5 px-3">Población / Municipio</th>
+              <th class="py-2.5 px-3">Relieve y Pendiente</th>
+              <th class="py-2.5 px-3">Cuenca y Evacuación</th>
+              <th class="py-2.5 px-3">Acceso y Hospital</th>
+              <th class="py-2.5 px-3 text-center">Nivel Peligro</th>
+              <th class="py-2.5 px-3 text-center">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tablaCuerpo" class="divide-y divide-slate-800/60 text-slate-300">
+            <!-- Dinámico -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
   </main>
+
+  <footer class="bg-caritas-950 border-t border-caritas-800 px-4 py-3 text-center text-xs text-red-200">
+    SARA | Cáritas Pastoral Social Tulancingo © 2025 | Sistema de Alerta y Respuesta Automática
+  </footer>
 
   <script type="module" src="/src/app.js"></script>
 </body>
